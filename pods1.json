@@ -1,0 +1,26 @@
+[
+    {
+        "name": "pod1",
+        "cpuRequest": 0.4,
+        "memoryRequest": 2,
+        "zone": "B"
+    },
+    {
+        "name": "pod2",
+        "cpuRequest": 1,
+        "memoryRequest": 2,
+        "zone": null
+    },
+    {
+        "name": "pod3",
+        "cpuRequest": 1,
+        "memoryRequest": 0.9,
+        "zone": null
+    },
+    {
+        "name": "pod4",
+        "cpuRequest": 0.6,
+        "memoryRequest": 1.2,
+        "zone": "A"
+    }
+]

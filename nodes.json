@@ -1,0 +1,128 @@
+[
+    {
+        "name": "node_2_4_A",
+        "cpu": 2,
+        "memory": 4,
+        "zone": "A",
+        "cost": 9.415777348576905
+    },
+    {
+        "name": "node_2_4_B",
+        "cpu": 2,
+        "memory": 4,
+        "zone": "B",
+        "cost": 5.050512748885945
+    },
+    {
+        "name": "node_2_32_A",
+        "cpu": 2,
+        "memory": 32,
+        "zone": "A",
+        "cost": 27.191362319729265
+    },
+    {
+        "name": "node_2_32_B",
+        "cpu": 2,
+        "memory": 32,
+        "zone": "B",
+        "cost": 27.283768568406717
+    },
+    {
+        "name": "node_2_64_B",
+        "cpu": 2,
+        "memory": 64,
+        "zone": "B",
+        "cost": 55.49171423380459
+    },
+    {
+        "name": "node_4_4_B",
+        "cpu": 4,
+        "memory": 4,
+        "zone": "B",
+        "cost": 4.151216196760611
+    },
+    {
+        "name": "node_4_16_A",
+        "cpu": 4,
+        "memory": 16,
+        "zone": "A",
+        "cost": 16.159308272622454
+    },
+    {
+        "name": "node_4_16_B",
+        "cpu": 4,
+        "memory": 16,
+        "zone": "B",
+        "cost": 17.911219635980338
+    },
+    {
+        "name": "node_4_32_B",
+        "cpu": 4,
+        "memory": 32,
+        "zone": "B",
+        "cost": 32.75033937180745
+    },
+    {
+        "name": "node_4_64_A",
+        "cpu": 4,
+        "memory": 64,
+        "zone": "A",
+        "cost": 56.7649121361059
+    },
+    {
+        "name": "node_4_64_B",
+        "cpu": 4,
+        "memory": 64,
+        "zone": "B",
+        "cost": 57.12195021009196
+    },
+    {
+        "name": "node_8_4_A",
+        "cpu": 8,
+        "memory": 4,
+        "zone": "A",
+        "cost": 4.400643066159067
+    },
+    {
+        "name": "node_8_4_B",
+        "cpu": 8,
+        "memory": 4,
+        "zone": "B",
+        "cost": 6.126846682521043
+    },
+    {
+        "name": "node_8_16_A",
+        "cpu": 8,
+        "memory": 16,
+        "zone": "A",
+        "cost": 14.039807485613037
+    },
+    {
+        "name": "node_8_32_A",
+        "cpu": 8,
+        "memory": 32,
+        "zone": "A",
+        "cost": 27.89527652427282
+    },
+    {
+        "name": "node_8_32_B",
+        "cpu": 8,
+        "memory": 32,
+        "zone": "B",
+        "cost": 29.728304751242618
+    },
+    {
+        "name": "node_8_64_A",
+        "cpu": 8,
+        "memory": 64,
+        "zone": "A",
+        "cost": 57.66791169120426
+    },
+    {
+        "name": "node_8_64_B",
+        "cpu": 8,
+        "memory": 64,
+        "zone": "B",
+        "cost": 53.08978776570531
+    }
+]
