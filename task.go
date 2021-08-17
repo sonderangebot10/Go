@@ -1,85 +1,53 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"math"
-	"os"
+	"strconv"
+	. "task/helpers"
+	. "task/structs"
+	"time"
 )
 
-type Pods []struct {
-	Name          string  `json:"name"`
-	CPURequest    float64 `json:"cpuRequest"`
-	MemoryRequest float64 `json:"memoryRequest"`
-	Zone          string  `json:"zone"`
-}
+var globalMinPrice = math.MaxFloat64
+var globalLowestCostSolution = NodesListItem{}
 
-type Nodes []struct {
-	Name      string  `json:"name"`
-	CPU       float64 `json:"cpu"`
-	Memory    float64 `json:"memory"`
-	Zone      string  `json:"zone"`
-	Cost      float64 `json:"cost"`
-	PodsNames []string
-}
+var foundSolutions = NodesList{}
+var allCheckedSolutions = NodesList{}
 
 func main() {
 
-	// PODS READ
-	podsJsonFile, err := os.Open("pods.json")
-
 	var pods Pods
-
-	podsByteValue, _ := ioutil.ReadAll(podsJsonFile)
-	json.Unmarshal(podsByteValue, &pods)
-
-	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
-	}
-	defer podsJsonFile.Close()
-
-	// NODES READ
-	nodesJsonFile, err := os.Open("nodes1.json")
+	GenericReadFile("tests/pods1.json", &pods)
 
 	var nodes Nodes
-
-	nodesByteValue, _ := ioutil.ReadAll(nodesJsonFile)
-	json.Unmarshal(nodesByteValue, &nodes)
-
-	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
-	}
-	defer nodesJsonFile.Close()
+	GenericReadFile("tests/nodes1.json", &nodes)
 
 	explore(nodes, pods, Nodes{}, 0, 0, 0)
-}
 
-// THE LOGIC
-var globalMinPrice = math.MaxFloat64
+	fmt.Println("found " + strconv.Itoa((len(foundSolutions))) + " different possible node combinations")
+
+	time.Sleep(3 * time.Second)
+
+	for i, v := range foundSolutions {
+		fmt.Println("Permuting " + strconv.Itoa(i) + " element")
+		permute(pods, v.NodeList, 0, v.TotalCost, 0)
+	}
+
+	globalLowestCostSolution.Print()
+}
 
 func explore(nodes Nodes, pods Pods, currentSolution Nodes, count, startPods int, minPrice float64) {
 
-	for i := startPods; i < len(pods); i++ {
-
-		if len(currentSolution) > 0 {
-			for j := 0; j < len(currentSolution); j++ {
-
-				if currentSolution[j].CPU >= pods[i].CPURequest && currentSolution[j].Memory >= pods[i].MemoryRequest && (currentSolution[j].Zone == pods[i].Zone || currentSolution[j].Zone == "" || pods[i].Zone == "") {
-					currentSolution[j].CPU = currentSolution[j].CPU - pods[i].CPURequest
-					currentSolution[j].Memory = toFixed(currentSolution[j].Memory-pods[i].MemoryRequest, 2)
-					currentSolution[j].PodsNames = append(currentSolution[j].PodsNames, pods[i].Name)
-
-					explore(nodes, pods, currentSolution, count+1, i+1, minPrice)
-
-					currentSolution[j].CPU = currentSolution[j].CPU + pods[i].CPURequest
-					currentSolution[j].Memory = toFixed(currentSolution[j].Memory+pods[i].MemoryRequest, 2)
-					currentSolution[j].PodsNames = currentSolution[j].PodsNames[:len(currentSolution[j].PodsNames)-1]
-				}
-			}
+	/// /// /// /// /// ///
+	for _, v := range append(foundSolutions, allCheckedSolutions...) {
+		if UnorderedEqual(v.NodeList, currentSolution) {
+			return
 		}
+	}
+	/// /// /// /// /// ///
+
+	for i := startPods; i < len(pods); i++ {
 
 		for _, node := range nodes {
 
@@ -87,42 +55,76 @@ func explore(nodes Nodes, pods Pods, currentSolution Nodes, count, startPods int
 
 				if node.Zone == pods[i].Zone || node.Zone == "" || pods[i].Zone == "" {
 
-					newNode := node
-					newNode.CPU = toFixed(newNode.CPU-pods[i].CPURequest, 2)
-					newNode.Memory = toFixed(newNode.Memory-pods[i].MemoryRequest, 2)
-					newNode.PodsNames = append(newNode.PodsNames, pods[i].Name)
+					node.CPU = ToFixed(node.CPU-pods[i].CPURequest, 2)
+					node.Memory = ToFixed(node.Memory-pods[i].MemoryRequest, 2)
+					// node.PodsNames = append(newNode.PodsNames, pods[i].Name)
 
-					currentSolution = append(currentSolution, newNode)
-
-					explore(nodes, pods, currentSolution, count+1, i+1, minPrice+newNode.Cost)
-
+					currentSolution = append(currentSolution, node)
+					explore(nodes, pods, currentSolution, count+1, i+1, minPrice+node.Cost)
 					currentSolution = currentSolution[:len(currentSolution)-1]
 				}
 			}
 		}
+
 	}
 
-	if count == len(pods) && globalMinPrice > minPrice {
-		globalMinPrice = minPrice
+	/// /// /// /// /// ///
+	contains := false
 
-		fmt.Print(minPrice)
-		fmt.Print(": ")
-		for _, v := range currentSolution {
-			fmt.Print(" " + v.Name + ":")
+	if count == len(pods) {
 
-			for _, n := range v.PodsNames {
-				fmt.Print(" " + n)
+		for _, v := range foundSolutions {
+			if UnorderedEqual(v.NodeList, currentSolution) {
+				contains = true
 			}
 		}
-		fmt.Println()
+
+		if !contains {
+
+			fmt.Println("Found " + strconv.Itoa(len(foundSolutions)) + " solutions without permutation")
+
+			foundSolutions = append(foundSolutions, NodesListItem{NodeList: currentSolution.Copy(), TotalCost: minPrice})
+			return
+		}
 	}
+
+	if !contains {
+
+		allCheckedSolutions = append(allCheckedSolutions, NodesListItem{NodeList: currentSolution.Copy(), TotalCost: minPrice})
+		return
+	}
+	/// /// /// /// /// ///
 }
 
-func toFixed(num float64, precision int) float64 {
-	output := math.Pow(10, float64(precision))
-	return float64(round(num*output)) / output
-}
+func permute(pods Pods, currentSolution Nodes, count int, minPrice float64, startPods int) {
 
-func round(num float64) int {
-	return int(num + math.Copysign(0.5, num))
+	for i := startPods; i < len(pods); i++ {
+
+		for j := 0; j < len(currentSolution); j++ {
+
+			if currentSolution[j].CPU >= pods[i].CPURequest && currentSolution[j].Memory >= pods[i].MemoryRequest && (currentSolution[j].Zone == pods[i].Zone || currentSolution[j].Zone == "" || pods[i].Zone == "") {
+				currentSolution[j].CPU = currentSolution[j].CPU - pods[i].CPURequest
+				currentSolution[j].Memory = ToFixed(currentSolution[j].Memory-pods[i].MemoryRequest, 2)
+				currentSolution[j].PodsNames = append(currentSolution[j].PodsNames, pods[i].Name)
+
+				permute(pods, currentSolution, count+1, minPrice, i+1)
+
+				currentSolution[j].CPU = currentSolution[j].CPU + pods[i].CPURequest
+				currentSolution[j].Memory = ToFixed(currentSolution[j].Memory+pods[i].MemoryRequest, 2)
+				currentSolution[j].PodsNames = currentSolution[j].PodsNames[:len(currentSolution[j].PodsNames)-1]
+			}
+		}
+	}
+
+	if count == len(pods) {
+
+		minPrice = RemoveUnusedNodesPrice(minPrice, currentSolution)
+
+		if globalMinPrice > minPrice {
+			globalMinPrice = minPrice
+
+			globalLowestCostSolution = NodesListItem{NodeList: currentSolution.Copy(), TotalCost: minPrice}
+			globalLowestCostSolution.Print()
+		}
+	}
 }
