@@ -3,154 +3,153 @@ package main
 import (
 	"fmt"
 	"math"
-	"strconv"
+	"sort"
 	. "task/helpers"
 	. "task/structs"
 )
 
-var allVariationsNodes = NodesList{}
-var globalMinPrice = math.MaxFloat64
+const MAX_RETRY_COUNT = 1000000
 
+var globalMinPrice = math.MaxFloat64
 var globalLowestCostSolution = NodesListItem{}
-var found = false
 
 func main() {
 
 	var pods Pods
-	GenericReadFile("tests/pods.json", &pods)
+	GenericReadFile("data/pods.json", &pods)
 
 	var nodes Nodes
-	GenericReadFile("tests/nodes.json", &nodes)
+	GenericReadFile("data/nodes.json", &nodes)
 
-	totals := TotalReq{}
+	sort.Slice(nodes[:], func(i, j int) bool {
+		return (nodes[i].CPU+nodes[i].Memory)/nodes[i].Cost > (nodes[j].CPU+nodes[j].Memory)/nodes[j].Cost
+	})
+
+	totalRequirements := TotalReq{}
 	for _, v := range pods {
-
 		if v.Zone == "A" {
-			totals.A_totalCPU = ToFixed(v.CPURequest+totals.A_totalCPU, 2)
-			totals.A_totalMemory = ToFixed(v.MemoryRequest+totals.A_totalMemory, 2)
+			totalRequirements.A_totalCPU = ToFixed(v.CPURequest+totalRequirements.A_totalCPU, 2)
+			totalRequirements.A_totalMemory = ToFixed(v.MemoryRequest+totalRequirements.A_totalMemory, 2)
 		} else if v.Zone == "B" {
-			totals.B_totalCPU = ToFixed(v.CPURequest+totals.B_totalCPU, 2)
-			totals.B_totalMemory = ToFixed(v.MemoryRequest+totals.B_totalMemory, 2)
+			totalRequirements.B_totalCPU = ToFixed(v.CPURequest+totalRequirements.B_totalCPU, 2)
+			totalRequirements.B_totalMemory = ToFixed(v.MemoryRequest+totalRequirements.B_totalMemory, 2)
 		} else if v.Zone == "" {
-			totals.X_totalCPU = ToFixed(v.CPURequest+totals.X_totalCPU, 2)
-			totals.X_totalMemory = ToFixed(v.MemoryRequest+totals.X_totalMemory, 2)
+			totalRequirements.X_totalCPU = ToFixed(v.CPURequest+totalRequirements.X_totalCPU, 2)
+			totalRequirements.X_totalMemory = ToFixed(v.MemoryRequest+totalRequirements.X_totalMemory, 2)
 		}
 	}
 
-	var tree = Leaf{Node: Node{}, TotalPrice: 0}
+	StartTimePrinter()
 
-	queue := make([]Leaf, 0)
+	explore(nodes, pods, Nodes{}, 0, 0, totalRequirements, 0)
 
-	for _, v := range nodes {
-
-		t := totals
-		if v.Zone == "A" {
-			t.A_totalCPU = ToFixed(t.A_totalCPU-v.CPU, 2)
-			t.A_totalMemory = ToFixed(t.A_totalMemory-v.Memory, 2)
-		}
-		if v.Zone == "B" {
-			t.B_totalCPU = ToFixed(t.B_totalCPU-v.CPU, 2)
-			t.B_totalMemory = ToFixed(t.B_totalMemory-v.Memory, 2)
-		}
-
-		var l = Leaf{Node: v, TotalPrice: v.Cost, Totals: t}
-		tree.Parent = nil
-
-		queue = append(queue, l)
-	}
-
-	traverseTree(queue, nodes)
-
-	fmt.Println("OK")
+	fmt.Print("cheapest solution found: ")
+	globalLowestCostSolution.Print()
 }
 
-func traverseTree(_queue []Leaf, nodes Nodes) {
+func explore(nodes Nodes, pods Pods, currentSolution Nodes, count int, minPrice float64, t TotalReq, ni int) {
 
-	queue := _queue
-	level := 1
+	if minPrice >= globalMinPrice {
+		return
+	}
 
-	for len(queue) > 0 {
+	if t.AllSatisfied() {
 
-		size := len(queue)
+		retries = 0
+		tryPack(pods, currentSolution.Copy(), 0, minPrice, 0)
+		return
+	}
 
-		fmt.Println("checking level " + strconv.Itoa(level))
-		level++
+	for nodei, node := range nodes[ni:] {
 
-		for i := 0; i < size; i++ {
+		tmpT := t
+		if node.Zone == "A" && ((t.A_totalCPU > 0 || t.A_totalMemory > 0) || (t.X_totalCPU > 0 || t.X_totalMemory > 0)) {
+			tmpT.A_totalCPU = ToFixed(tmpT.A_totalCPU-node.CPU, 2)
+			tmpT.A_totalMemory = ToFixed(tmpT.A_totalMemory-node.Memory, 2)
 
-			u := queue[0]
-			queue = queue[1:]
+			if tmpT.A_totalCPU < 0 && tmpT.A_totalMemory < 0 {
+				tmpT.X_totalCPU = ToFixed(tmpT.X_totalCPU+tmpT.A_totalCPU, 2)
+				tmpT.X_totalMemory = ToFixed(tmpT.X_totalMemory+tmpT.A_totalMemory, 2)
 
-			if u.Totals.AllSatisfied() {
-				// ENDING LEAF POINTING TO PARENT TO FORM A POSSIBILITY PATH
+				tmpT.A_totalCPU = 0
+				tmpT.A_totalMemory = 0
 			}
+		} else if node.Zone == "B" && ((tmpT.B_totalCPU > 0 || t.B_totalMemory > 0) || (t.X_totalCPU > 0 || t.X_totalMemory > 0)) {
+			tmpT.B_totalCPU = ToFixed(tmpT.B_totalCPU-node.CPU, 2)
+			tmpT.B_totalMemory = ToFixed(tmpT.B_totalMemory-node.Memory, 2)
 
-			if !u.Totals.AllSatisfied() {
-				for _, node := range nodes {
+			if tmpT.B_totalCPU < 0 && tmpT.B_totalMemory < 0 {
+				tmpT.X_totalCPU = ToFixed(tmpT.X_totalCPU+tmpT.B_totalCPU, 2)
+				tmpT.X_totalMemory = ToFixed(tmpT.X_totalMemory+tmpT.B_totalMemory, 2)
 
-					t := u.Totals
-					if node.Zone == "A" && (t.A_totalCPU > 0 || t.A_totalMemory > 0) {
-						t.A_totalCPU = ToFixed(t.A_totalCPU-node.CPU, 2)
-						t.A_totalMemory = ToFixed(t.A_totalMemory-node.Memory, 2)
-
-						var l = Leaf{Node: node, TotalPrice: ToFixed(u.TotalPrice+node.Cost, 15), Totals: t, Parent: &u}
-						queue = append(queue, l)
-
-					} else if node.Zone == "B" && (t.B_totalCPU > 0 || t.B_totalMemory > 0) {
-						t.B_totalCPU = ToFixed(t.B_totalCPU-node.CPU, 2)
-						t.B_totalMemory = ToFixed(t.B_totalMemory-node.Memory, 2)
-
-						var l = Leaf{Node: node, TotalPrice: ToFixed(u.TotalPrice+node.Cost, 15), Totals: t, Parent: &u}
-						queue = append(queue, l)
-
-					} else if t.X_totalCPU > 0 || t.X_totalMemory > 0 {
-						t.X_totalCPU = ToFixed(t.X_totalCPU-node.CPU, 2)
-						t.X_totalMemory = ToFixed(t.X_totalMemory-node.Memory, 2)
-
-						var l = Leaf{Node: node, TotalPrice: ToFixed(u.TotalPrice+node.Cost, 15), Totals: t, Parent: &u}
-						queue = append(queue, l)
-					}
-				}
+				tmpT.B_totalCPU = 0
+				tmpT.B_totalMemory = 0
 			}
+		} else {
+			continue
 		}
+
+		currentSolution = append(currentSolution, node)
+		explore(nodes, pods, currentSolution, count+1, minPrice+node.Cost, tmpT, nodei)
+		currentSolution = currentSolution[:len(currentSolution)-1]
 	}
 }
 
-func permute(pods Pods, currentSolution Nodes, count int, price float64, startPods int) {
+var retries int
+
+func tryPack(pods Pods, currentSolution Nodes, count int, minPrice float64, startPods int) bool {
+
+	if retries > MAX_RETRY_COUNT {
+		return false
+	}
 
 	for i := startPods; i < len(pods); i++ {
 
+		if !currentSolution.HasFitNodes(pods[i].CPURequest, pods[i].MemoryRequest, pods[i].Zone) ||
+			(pods[i].CPURequest > currentSolution.TotalRemainingReq(pods[i].Zone).CPU ||
+				pods[i].MemoryRequest > currentSolution.TotalRemainingReq(pods[i].Zone).Memory) ||
+			count != i {
+
+			return false
+		}
+
 		for j := 0; j < len(currentSolution); j++ {
 
-			if currentSolution[j].CPU >= pods[i].CPURequest && currentSolution[j].Memory >= pods[i].MemoryRequest && (currentSolution[j].Zone == pods[i].Zone || currentSolution[j].Zone == "" || pods[i].Zone == "") {
+			if currentSolution[j].CPU >= pods[i].CPURequest &&
+				currentSolution[j].Memory >= pods[i].MemoryRequest &&
+				(currentSolution[j].Zone == pods[i].Zone || pods[i].Zone == "") {
 
-				newNode := Node{
-					Name:      currentSolution[j].Name,
-					CPU:       ToFixed(currentSolution[j].CPU-pods[i].CPURequest, 2),
-					Memory:    ToFixed(currentSolution[j].Memory-pods[i].MemoryRequest, 2),
-					Zone:      currentSolution[j].Zone,
-					Cost:      currentSolution[j].Cost,
-					PodsNames: append(currentSolution[j].PodsNames, pods[i].Name)}
-				oldNode := Node{
-					Name:      currentSolution[j].Name,
-					CPU:       currentSolution[j].CPU,
-					Memory:    currentSolution[j].Memory,
-					Zone:      currentSolution[j].Zone,
-					Cost:      currentSolution[j].Cost,
-					PodsNames: currentSolution[j].PodsNames}
+				currentSolution[j].CPU = ToFixed(currentSolution[j].CPU-pods[i].CPURequest, 2)
+				currentSolution[j].Memory = ToFixed(currentSolution[j].Memory-pods[i].MemoryRequest, 2)
+				currentSolution[j].PodsNames = append(currentSolution[j].PodsNames, pods[i].Name)
 
-				currentSolution[j] = newNode
+				if tryPack(pods, currentSolution, count+1, minPrice, i+1) {
+					return true
+				}
 
-				permute(pods, currentSolution, count+1, price, i+1)
+				retries++
 
-				currentSolution[j] = oldNode
+				currentSolution[j].CPU = ToFixed(currentSolution[j].CPU+pods[i].CPURequest, 2)
+				currentSolution[j].Memory = ToFixed(currentSolution[j].Memory+pods[i].MemoryRequest, 2)
+				currentSolution[j].PodsNames = currentSolution[j].PodsNames[:len(currentSolution[j].PodsNames)-1]
 			}
+		}
+
+	}
+
+	if count == len(pods) {
+
+		if globalMinPrice > minPrice {
+
+			globalMinPrice = minPrice
+
+			globalLowestCostSolution = NodesListItem{NodeList: currentSolution.Copy(), TotalCost: minPrice}
+			fmt.Print("new lowest price found: ")
+			globalLowestCostSolution.PrintPrice()
+
+			return true
 		}
 	}
 
-	if count == len(pods) && !found {
-
-		globalLowestCostSolution = NodesListItem{NodeList: currentSolution.Copy(), TotalCost: price}
-		globalLowestCostSolution.Print()
-	}
+	return false
 }

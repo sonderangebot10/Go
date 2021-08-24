@@ -25,3 +25,9 @@ func (n NodesListItem) Print() {
 	}
 	fmt.Println()
 }
+
+func (n NodesListItem) PrintPrice() {
+
+	fmt.Print(n.TotalCost)
+	fmt.Println()
+}

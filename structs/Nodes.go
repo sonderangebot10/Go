@@ -1,5 +1,7 @@
 package structs
 
+import . "task/helpers"
+
 type Nodes []Node
 
 type Node struct {
@@ -31,15 +33,39 @@ func (n Nodes) Copy() Nodes {
 	return result
 }
 
-func RemoveUnusedNodesPrice(cost float64, n Nodes) float64 {
+type Req struct {
+	CPU    float64
+	Memory float64
+}
 
-	for _, v := range n {
-		if len(v.PodsNames) == 0 {
-			cost -= v.Cost
+func (n Nodes) TotalRemainingReq(zone string) Req {
+
+	result := Req{}
+
+	for _, x := range n {
+
+		if x.Zone == zone || zone == "" {
+			result.CPU = ToFixed(result.CPU+x.CPU, 2)
+			result.Memory = ToFixed(result.Memory+x.Memory, 2)
 		}
 	}
 
-	return cost
+	return result
+}
+
+func (n Nodes) HasFitNodes(cpu float64, memory float64, zone string) bool {
+
+	for _, x := range n {
+
+		if x.Zone == zone || zone == "" {
+
+			if x.CPU >= cpu && x.Memory >= memory {
+				return true
+			}
+		}
+	}
+
+	return false
 }
 
 func UnorderedEqual(first, second Nodes) bool {

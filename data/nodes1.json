@@ -1,0 +1,30 @@
+[
+    {
+        "name": "node_8_64_A",
+        "cpu": 100,
+        "memory": 100,
+        "zone": "A",
+        "cost": 17.66791169120426
+    },
+    {
+        "name": "node_4_4_B",
+        "cpu": 4,
+        "memory": 4,
+        "zone": "B",
+        "cost": 4.151216196760611
+    },
+    {
+        "name": "node_8_4_A",
+        "cpu": 8,
+        "memory": 4,
+        "zone": "A",
+        "cost": 4.400643066159067
+    },
+    {
+        "name": "node_8_4_B",
+        "cpu": 8,
+        "memory": 4,
+        "zone": "B",
+        "cost": 6.126846682521043
+    }
+]
